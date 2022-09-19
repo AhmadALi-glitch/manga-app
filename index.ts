@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import env from "dotenv";
 import filePath from "./file-path";
 import {defaultRouter} from "./routes/default"
+import { authRouter } from "./routes/auth";
 
 /// Environment Variables Setup
 env.config({
@@ -20,12 +21,11 @@ async function connectWithDatabase() {
 const app = express(); 
 
 /// Using Middlewares
-
+app.use(express.json());
 
 /// Using Routes
-app.use("/", defaultRouter);
+app.use([authRouter, defaultRouter]);
 
-console.log(process.env.DB_URI);
 /// Run The App ...
 connectWithDatabase()
 .then(() => {
