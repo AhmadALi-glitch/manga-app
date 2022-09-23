@@ -36,7 +36,35 @@ authRouter.post('/auth/register', async (req, res) =>{
 })
 
 authRouter.post('/auth/login', async (req, res) =>{
-    res.send("login page");
+    
+    // Validate User Criedntials...
+    const validationResult = ValidationSchema.userSchema.validate(req.body);
+    if(validationResult.error) {
+        res.status(404).send({error : validationResult.error.message});
+        return;
+    }
+
+    // Create user Object
+    const user = new User(_.pick(req.body, ['username']));
+
+    // Check the user...
+    User.find({username : user.username})
+        .then((userResult:any) => {
+
+            bcrypt.compare(req.body.password, userResult[0].hashedPassword)
+                .catch((hashError:boolean) => {
+                    res.send(hashError);
+                })
+
+            return userResult;
+        })
+        .then((userResult) => {
+            res.send(userResult);
+        })
+        .catch((userCheckError) => {
+            res.send("user not found");
+        })
+
 })
 
 export {authRouter};
