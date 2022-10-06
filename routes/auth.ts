@@ -1,9 +1,9 @@
 import express from "express";
-import joi from "joi";
 import ValidationSchema from "../utils/validationSchema";
+import jwt from "jsonwebtoken";
 import { User } from "../models/User";
-import _ from "lodash";
-import bcrypt from "bcryptjs";
+import _, { concat } from "lodash";
+import { MongooseError } from "mongoose";
 
 const authRouter = express.Router();
 
@@ -12,35 +12,35 @@ authRouter.post('/auth/register', async (req, res) =>{
     // Validate User Criedntials...
     const validationResult = ValidationSchema.userSchema.validate(req.body);
     if(validationResult.error) {
-        res.status(404).send({error : validationResult.error.message});
+        res.status(404).send({validationError : validationResult.error.message});
         return;
     }
 
     // Create user Object
-    const user = new User(_.pick(req.body, ['username']));
+    const user = new User(_.pick(req.body, ['username', 'password']));
 
     // Hash The password
-    const result = bcrypt.hashSync(req.body.password, 13);
-    user.hashedPassword = result;
+    user.password = 
+    user.schema.methods.hashPassword(req.body.password);
 
     // Save the user in the database
     user.save()
-    .then((result:any) => {
-        res.send(result);
-    })
-    .catch((error:any) => {
-        res.send(error)
-    })
-
-    
+        .then((userSaveResult:any) => {
+            const token = user.schema.methods.generateAuthToken();
+            res.header('x-auth', token).send(_.pick(userSaveResult, ['username', '_id', "password"]));
+        })
+        .catch((userSaveError:any) => {
+            res.send(userSaveError);
+        })
 })
+
 
 authRouter.post('/auth/login', async (req, res) =>{
     
     // Validate User Criedntials...
     const validationResult = ValidationSchema.userSchema.validate(req.body);
     if(validationResult.error) {
-        res.status(404).send({error : validationResult.error.message});
+        res.status(404).send({validationError : validationResult.error.message});
         return;
     }
 
@@ -48,21 +48,20 @@ authRouter.post('/auth/login', async (req, res) =>{
     const user = new User(_.pick(req.body, ['username']));
 
     // Check the user...
-    User.find({username : user.username})
+    User.findOne( {username : req.body.username} )
         .then((userResult:any) => {
-
-            bcrypt.compare(req.body.password, userResult[0].hashedPassword)
-                .catch((hashError:boolean) => {
-                    res.send(hashError);
-                })
-
-            return userResult;
-        })
-        .then((userResult) => {
+            const compareResult = user.schema.methods
+            .compareHashedPassword(req.body.password, userResult.password);
+        if(!compareResult) {
+            res.send("wrong password");
+            return;
+        }
+        else {
             res.send(userResult);
+        }
         })
-        .catch((userCheckError) => {
-            res.send("user not found");
+        .catch((userCheckError:MongooseError) => {
+            res.send("User Not Found");
         })
 
 })
