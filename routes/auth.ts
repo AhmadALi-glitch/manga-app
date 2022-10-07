@@ -3,7 +3,7 @@ import ValidationSchema from "../utils/validationSchema";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User";
 import _, { concat } from "lodash";
-import { MongooseError } from "mongoose";
+import mongoose, { MongooseError } from "mongoose";
 
 const authRouter = express.Router();
 
@@ -64,6 +64,12 @@ authRouter.post('/auth/login', async (req, res) =>{
             res.send("User Not Found");
         })
 
+})
+
+authRouter.get('/auth/users', (req, res) => {
+    User.find()
+        .then((data:any) => {res.send(data)})
+        .catch((err:any) => {res.send(err)});
 })
 
 export {authRouter};
